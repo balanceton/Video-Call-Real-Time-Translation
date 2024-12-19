@@ -1,0 +1,47 @@
+.container {
+  display: grid;
+  grid-template-columns: 7fr 3fr;
+}
+
+.myId {
+  margin-right: 5rem;
+  margin-top : 5rem;
+  border-radius: 5px;
+  background: #1c69d4;
+  background: -webkit-linear-gradient(to right, #1d1d9b, #c9d6ff);
+  background: linear-gradient(to right, #383e80, #c9d6ff);
+
+  padding: 2rem;
+  display: grid;
+  justify-content: center;
+  align-content: center;
+}
+
+.call-button {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.video-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  justify-content: center;
+  align-content: center;
+  margin-top: 5rem;
+  margin-left: 5rem;
+}
+
+.caller {
+  text-align: center;
+  color: #cee30b;
+}
+
+.button {
+  margin-left: 5rem;
+}
+
+body {
+  background: #a58617;
+  background: -webkit-linear-gradient(to right, #e1d09b, #cfe187);
+  background: linear-gradient(to right, #e9e7eb, #d3dda1);
+}
