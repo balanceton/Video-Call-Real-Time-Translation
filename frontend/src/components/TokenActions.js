@@ -9,7 +9,7 @@ const TokenActions = ({ tokenOwner, me, socket, stopRecording }) => {
           variant="contained"
           color="secondary"
           onClick={() => {
-            socket.emit("releaseToken");
+            socket.emit("releaseToken", { ownerId: me });
             stopRecording();
           }}
         >
@@ -20,7 +20,7 @@ const TokenActions = ({ tokenOwner, me, socket, stopRecording }) => {
           variant="contained"
           color="primary"
           onClick={() => {
-            socket.emit("requestToken");
+            socket.emit("requestToken", { requesterId: me });
           }}
         >
           Request Token

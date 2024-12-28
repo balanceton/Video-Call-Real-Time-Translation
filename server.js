@@ -12,11 +12,14 @@ const io = require("socket.io")(server, {
 let tokenOwner = null; 
 
 io.on("connection", (socket) => {
+	console.log("Yeni bağlantı:", socket.id);
+
 	socket.emit("me", socket.id);
 
 	socket.on("disconnect", () => {
+		console.log("Bağlantı koptu:", socket.id);
 		if (socket.id === tokenOwner) {
-			tokenOwner = null; 
+			tokenOwner = null;
 			io.emit("tokenUpdated", { tokenOwner: null });
 		}
 		socket.broadcast.emit("callEnded");
@@ -30,18 +33,26 @@ io.on("connection", (socket) => {
 		io.to(data.to).emit("callAccepted", data.signal);
 	});
 
-	socket.on("requestToken", () => {
-		if (tokenOwner === null || tokenOwner === socket.id) {
-			tokenOwner = socket.id;
-			io.emit("tokenUpdated", { tokenOwner });
+	socket.on("requestToken", ({ requesterId }) => {
+		if (!tokenOwner) {
+		  tokenOwner = requesterId;
+		  io.emit("tokenUpdated", { tokenOwner });
 		}
-	});
-
-	socket.on("releaseToken", () => {
-		if (socket.id === tokenOwner) {
-			tokenOwner = null; 
-			io.emit("tokenUpdated", { tokenOwner: null });
+	  });
+	
+	  socket.on("releaseToken", ({ ownerId }) => {
+		if (tokenOwner === ownerId) {
+		  tokenOwner = null;
+		  io.emit("tokenUpdated", { tokenOwner: null });
 		}
+	  });
+	
+	socket.on("sendProcessedVideo", ({ to, videoBlob, from }) => {
+		console.log("Video transfer isteği:");
+		console.log("Gönderen:", from);
+		console.log("Alıcı:", to);
+		
+		io.to(to).emit("receiveProcessedVideo", { videoBlob, from });
 	});
 });
 
