@@ -47,12 +47,12 @@ io.on("connection", (socket) => {
 		}
 	  });
 	
-	socket.on("sendProcessedVideo", ({ to, videoBlob, from }) => {
+	socket.on("sendProcessedVideo", ({ to, videoData, from }) => {
 		console.log("Video transfer isteği:");
 		console.log("Gönderen:", from);
 		console.log("Alıcı:", to);
 		
-		io.to(to).emit("receiveProcessedVideo", { videoBlob, from });
+		io.to(to).emit("receiveProcessedVideo", { videoData, from });
 	});
 });
 

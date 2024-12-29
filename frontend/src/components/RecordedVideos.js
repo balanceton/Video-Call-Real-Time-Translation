@@ -1,23 +1,38 @@
-import React from "react";
+import React, { useEffect } from "react";
 
-const RecordedVideos = ({ recordedBlob, processedVideoURL }) => {
+const RecordedVideos = ({ processedVideoURL, remoteProcessedVideoURL }) => {
   return (
-    <div>
-      {recordedBlob && (
+    <div className="video-container" style={{ 
+      display: "flex", 
+      justifyContent: "flex-start", 
+      gap: "2rem",
+      marginLeft: "80px"
+    }}>
+      {processedVideoURL && (
         <div className="video">
-          <h3>Recorded Video:</h3>
-          <video autoPlay controls style={{ width: "400px" }}>
-            <source src={URL.createObjectURL(recordedBlob)} type="video/webm" />
-            Your browser does not support the video tag.
+          <h3 className="text-lg font-semibold mb-2 text-white">Sizin Çevrilmiş Konuşmanız:</h3>
+          <video 
+            key={processedVideoURL} 
+            controls 
+            autoPlay
+            style={{ width: "400px" }}
+          >
+            <source src={processedVideoURL} type="video/webm" />
+            Tarayıcınız video etiketini desteklemiyor.
           </video>
         </div>
       )}
-      {processedVideoURL && (
-        <div>
-          <h3>Processed Video:</h3>
-          <video controls style={{ width: "400px" }}>
-            <source src={processedVideoURL} type="video/webm" />
-            Your browser does not support the video tag.
+      {remoteProcessedVideoURL && (
+        <div className="video">
+          <h3 className="text-lg font-semibold mb-2 text-white">Karşı Tarafın Çevrilmiş Konuşması:</h3>
+          <video 
+            key={remoteProcessedVideoURL} 
+            controls 
+            autoPlay
+            style={{ width: "400px" }}
+          >
+            <source src={remoteProcessedVideoURL} type="video/webm" />
+            Tarayıcınız video etiketini desteklemiyor.
           </video>
         </div>
       )}

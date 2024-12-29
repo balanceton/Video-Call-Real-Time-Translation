@@ -41,6 +41,7 @@ function App() {
   const [selectedLanguage, setSelectedLanguage] = useState(null); 
   const [remoteProcessedVideoURL, setRemoteProcessedVideoURL] = useState(null);
   const [callerName, setCallerName] = useState("");
+  const [callFrom, setCallFrom] = useState("");
 
 
   const myVideo = useRef();
@@ -67,71 +68,75 @@ function App() {
   }, [stream]);
 
   const stopRecording = () => {
-    console.log("Recording stopped");
     if (mediaRecorder) {
       mediaRecorder.onstop = () => {
         if (recordedChunks.length > 0) {
           const blob = new Blob(recordedChunks, { type: "video/webm" });
-  
-          if (recordedBlob) {
-            URL.revokeObjectURL(URL.createObjectURL(recordedBlob));
-          }
-  
           setRecordedBlob(blob);
-  
+
           const sendVideoToPipeline = async (videoBlob) => {
-            const formData = new FormData();
-            formData.append("file", videoBlob, "recorded_video.webm");
-            const apiLanguage = language_mapping[selectedLanguage] || "en";
-            formData.append("language", apiLanguage);
-  
             try {
-              console.log("Video gönderiliyor, alıcı ID:", idToCall);
-              console.log("Benim ID'm:", me);
-              
+              const formData = new FormData();
+              formData.append("file", videoBlob, "recorded_video.webm");
+              const apiLanguage = language_mapping[selectedLanguage] || "en";
+              formData.append("language", apiLanguage);
+
               const response = await fetch(
-                  "https://1fb0-34-143-237-34.ngrok-free.app/process_video/",
+                "https://421b-35-234-14-117.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
                   mode: "cors",
                 }
               );
-  
+
               if (response.ok) {
                 const blob = await response.blob();
-                
-                if (processedVideoURL) {
-                  URL.revokeObjectURL(processedVideoURL);
-                }
                 const videoURL = URL.createObjectURL(blob);
                 setProcessedVideoURL(videoURL);
 
-                console.log("Video işlendi, karşı tarafa gönderiliyor...");
-                socket.emit("sendProcessedVideo", {
-                  to: idToCall,
-                  videoBlob: blob,
-                  from: me
-                });
-                
-                console.log("Video gönderildi");
-              } else {
-                console.error("Video işleme hatası:", await response.text());
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const base64data = reader.result;
+                  
+                  // Debug için detaylı loglar
+                  console.log("Video göndermeye hazırlanıyor...");
+                  console.log("Benim ID'm:", me);
+                  console.log("Arayan mıyım?", !receivingCall);
+                  console.log("Caller ID:", caller);
+                  console.log("CallFrom:", callFrom);
+                  console.log("IdToCall:", idToCall);
+
+                  // Hedef ID'yi belirle
+                  let targetId;
+                  if (receivingCall) {
+                    // Eğer ben aranan tarafsam, arayana gönder
+                    targetId = caller;
+                    console.log("Aranan taraf olarak gönderiliyor. Hedef:", targetId);
+                  } else {
+                    // Eğer ben arayan tarafsam, aranana gönder
+                    targetId = idToCall;
+                    console.log("Arayan taraf olarak gönderiliyor. Hedef:", targetId);
+                  }
+
+                  socket.emit("sendProcessedVideo", {
+                    to: targetId,
+                    videoData: base64data,
+                    from: me
+                  });
+                };
+                reader.readAsDataURL(blob);
               }
             } catch (error) {
-              console.error("Video yükleme hatası:", error);
+              console.error("Video işleme/gönderme hatası:", error);
             }
           };
-  
+
           sendVideoToPipeline(blob);
-          setRecordedChunks([]); // Clear chunks
-        } else {
-          console.warn("No recorded chunks available.");
+          setRecordedChunks([]);
         }
       };
-  
       mediaRecorder.stop();
-      console.log("Recording stopped");
     }
   };
   
@@ -162,28 +167,42 @@ function App() {
       console.log("Benim ID'm:", id);
     });
 
-    socket.on("callUser", (data) => {
-      console.log("Arama alındı:", data);
+    socket.on("callUser", ({ signal, from, name }) => {
+      setCallFrom(from);
+      setCallerName(name);
       setReceivingCall(true);
-      setCaller(data.from);
-      setCallerName(data.name);
-      setCallerSignal(data.signal);
+      setCaller(from);
+      setCallerSignal(signal);
     });
 
     socket.on("tokenUpdated", (data) => {
       setTokenOwner(data.tokenOwner);
     });
 
-    socket.on("receiveProcessedVideo", ({ videoBlob, from }) => {
-      console.log("Video alındı, gönderen ID:", from);
+    socket.on("receiveProcessedVideo", ({ videoData, from }) => {
+      console.log("Video alındı!");
+      console.log("Gönderen ID:", from);
       console.log("Benim ID'm:", me);
+      console.log("Arayan mıyım?", !receivingCall);
+      console.log("Video data uzunluğu:", videoData?.length);
       
-      if (from !== me) {
-        if (remoteProcessedVideoURL) {
-          URL.revokeObjectURL(remoteProcessedVideoURL);
+      if (remoteProcessedVideoURL) {
+        URL.revokeObjectURL(remoteProcessedVideoURL);
+      }
+      
+      try {
+        const byteString = atob(videoData.split(',')[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
         }
-        const newVideoURL = URL.createObjectURL(new Blob([videoBlob], { type: 'video/webm' }));
+        const blob = new Blob([ab], { type: 'video/webm' });
+        const newVideoURL = URL.createObjectURL(blob);
+        console.log("Yeni video URL oluşturuldu:", newVideoURL);
         setRemoteProcessedVideoURL(newVideoURL);
+      } catch (error) {
+        console.error("Video dönüştürme hatası:", error);
       }
     });
 
@@ -191,8 +210,9 @@ function App() {
       socket.off("me");
       socket.off("callUser");
       socket.off("receiveProcessedVideo");
+      socket.off("tokenUpdated");
     };
-  }, [caller, me, remoteProcessedVideoURL]);
+  }, [me, receivingCall]); // receivingCall'ı dependency olarak ekledik
 
   // ** Call a User **
   const callUser = (id) => {
@@ -226,6 +246,7 @@ function App() {
   // ** Answer a Call **
   const answerCall = () => {
     setCallAccepted(true);
+    setCallFrom(caller); // Arayanın ID'sini burada da set edelim
 
     const peer = new Peer({
       initiator: false,
@@ -243,6 +264,11 @@ function App() {
 
     peer.signal(callerSignal);
     connectionRef.current = peer;
+
+    // Debug için log ekleyelim
+    console.log("Çağrı yanıtlandı:");
+    console.log("Benim ID'm (aranan):", me);
+    console.log("Arayanın ID'si:", caller);
   };
 
   // ** Leave a Call **
@@ -256,38 +282,54 @@ function App() {
     <>
       <h1 style={{ textAlign: "center", color: "#fff" }}>Video Call</h1>
       <div className="container">
-      {selectedLanguage == null && (
-  <LanguageSelector
-    selectedLanguage={selectedLanguage}
-    setSelectedLanguage={setSelectedLanguage}
-  />
-)}
-
-        <VideoContainer
-          myVideo={myVideo}
-          userVideo={userVideo}
-          stream={stream}
-          callAccepted={callAccepted}
-          callEnded={callEnded}
-        />
-        { (<MyId
-          me={me}
-          name={name}
-          setName={setName}
-          idToCall={idToCall}
-          setIdToCall={setIdToCall}
-          callUser={callUser}
-          callAccepted={callAccepted}
-          callEnded={callEnded}
-          leaveCall={leaveCall}
-        /> )}
-        { !callAccepted && (<CallNotifications receivingCall={receivingCall} name={callerName} answerCall={answerCall} />)}
-        <TokenActions tokenOwner={tokenOwner} me={me} socket={socket} stopRecording={stopRecording} />
-        <RecordedVideos 
-          recordedBlob={recordedBlob} 
-          processedVideoURL={processedVideoURL}
-          remoteProcessedVideoURL={remoteProcessedVideoURL} 
-        />
+        {selectedLanguage == null && (
+          <LanguageSelector
+            selectedLanguage={selectedLanguage}
+            setSelectedLanguage={setSelectedLanguage}
+          />
+        )}
+        <div style={{ display: "flex" }}>
+          <div>
+            <VideoContainer
+              myVideo={myVideo}
+              userVideo={userVideo}
+              stream={stream}
+              callAccepted={callAccepted}
+              callEnded={callEnded}
+            />
+            <RecordedVideos 
+              recordedBlob={recordedBlob} 
+              processedVideoURL={processedVideoURL}
+              remoteProcessedVideoURL={remoteProcessedVideoURL} 
+            />
+          </div>
+          <div style={{ marginLeft: "100px", width: "400px" }}>
+            <MyId
+              me={me}
+              name={name}
+              setName={setName}
+              idToCall={idToCall}
+              setIdToCall={setIdToCall}
+              callUser={callUser}
+              callAccepted={callAccepted}
+              callEnded={callEnded}
+              leaveCall={leaveCall}
+            />
+            <TokenActions 
+              tokenOwner={tokenOwner} 
+              me={me} 
+              socket={socket} 
+              stopRecording={stopRecording} 
+            />
+          </div>
+        </div>
+        {!callAccepted && (
+          <CallNotifications 
+            receivingCall={receivingCall} 
+            name={callerName} 
+            answerCall={answerCall} 
+          />
+        )}
       </div>
     </>
   );
