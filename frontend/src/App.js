@@ -21,7 +21,7 @@ const language_mapping = {
 };
 
 
-const socket = io.connect("http://localhost:5000");
+const socket = io.connect("http://192.168.1.107:5000");
 
 function App() {
   const [me, setMe] = useState("");
@@ -38,7 +38,7 @@ function App() {
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [recordedBlob, setRecordedBlob] = useState(null);
   const [processedVideoURL, setProcessedVideoURL] = useState(null);
-  const [selectedLanguage, setSelectedLanguage] = useState(null); 
+  const [selectedLanguage, setSelectedLanguage] = useState(null);
   const [remoteProcessedVideoURL, setRemoteProcessedVideoURL] = useState(null);
   const [callerName, setCallerName] = useState("");
   const [callFrom, setCallFrom] = useState("");
@@ -98,7 +98,7 @@ function App() {
                 const reader = new FileReader();
                 reader.onloadend = () => {
                   const base64data = reader.result;
-                  
+
                   // Debug için detaylı loglar
                   console.log("Video göndermeye hazırlanıyor...");
                   console.log("Benim ID'm:", me);
@@ -139,7 +139,7 @@ function App() {
       mediaRecorder.stop();
     }
   };
-  
+
 
   // ** UseEffect to start recording when tokenOwner matches me **
   useEffect(() => {
@@ -157,10 +157,18 @@ function App() {
 
   // ** Socket IO Logic **
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
-      setStream(stream);
-      myVideo.current.srcObject = stream;
-    });
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then((stream) => {
+          setStream(stream);
+          myVideo.current.srcObject = stream;
+        })
+        .catch((error) => {
+          console.error("Error accessing media devices:", error);
+        });
+    } else {
+      console.error("getUserMedia is not supported in this browser.");
+    }
 
     socket.on("me", (id) => {
       setMe(id);
@@ -185,11 +193,11 @@ function App() {
       console.log("Benim ID'm:", me);
       console.log("Arayan mıyım?", !receivingCall);
       console.log("Video data uzunluğu:", videoData?.length);
-      
+
       if (remoteProcessedVideoURL) {
         URL.revokeObjectURL(remoteProcessedVideoURL);
       }
-      
+
       try {
         const byteString = atob(videoData.split(',')[1]);
         const ab = new ArrayBuffer(byteString.length);
@@ -297,10 +305,10 @@ function App() {
               callAccepted={callAccepted}
               callEnded={callEnded}
             />
-            <RecordedVideos 
-              recordedBlob={recordedBlob} 
+            <RecordedVideos
+              recordedBlob={recordedBlob}
               processedVideoURL={processedVideoURL}
-              remoteProcessedVideoURL={remoteProcessedVideoURL} 
+              remoteProcessedVideoURL={remoteProcessedVideoURL}
             />
           </div>
           <div style={{ marginLeft: "100px", width: "400px" }}>
@@ -315,19 +323,19 @@ function App() {
               callEnded={callEnded}
               leaveCall={leaveCall}
             />
-            <TokenActions 
-              tokenOwner={tokenOwner} 
-              me={me} 
-              socket={socket} 
-              stopRecording={stopRecording} 
+            <TokenActions
+              tokenOwner={tokenOwner}
+              me={me}
+              socket={socket}
+              stopRecording={stopRecording}
             />
           </div>
         </div>
         {!callAccepted && (
-          <CallNotifications 
-            receivingCall={receivingCall} 
-            name={callerName} 
-            answerCall={answerCall} 
+          <CallNotifications
+            receivingCall={receivingCall}
+            name={callerName}
+            answerCall={answerCall}
           />
         )}
       </div>

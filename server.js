@@ -1,15 +1,21 @@
+const fs = require("fs");
+const https = require("https");
 const express = require("express")
-const http = require("http")
 const app = express()
-const server = http.createServer(app)
+
+const privateKey = fs.readFileSync("server.key", "utf8");
+const certificate = fs.readFileSync("server.cert", "utf8");
+const credentials = { key: privateKey, cert: certificate };
+
+const server = https.createServer(credentials, app);
 const io = require("socket.io")(server, {
 	cors: {
-		origin: "http://localhost:3000",
-		methods: [ "GET", "POST" ]
+		origin: "https://192.168.1.107:3000",
+		methods: ["GET", "POST"]
 	}
-})
+});
 
-let tokenOwner = null; 
+let tokenOwner = null;
 
 io.on("connection", (socket) => {
 	console.log("Yeni bağlantı:", socket.id);
@@ -35,25 +41,27 @@ io.on("connection", (socket) => {
 
 	socket.on("requestToken", ({ requesterId }) => {
 		if (!tokenOwner) {
-		  tokenOwner = requesterId;
-		  io.emit("tokenUpdated", { tokenOwner });
+			tokenOwner = requesterId;
+			io.emit("tokenUpdated", { tokenOwner });
 		}
-	  });
-	
-	  socket.on("releaseToken", ({ ownerId }) => {
+	});
+
+	socket.on("releaseToken", ({ ownerId }) => {
 		if (tokenOwner === ownerId) {
-		  tokenOwner = null;
-		  io.emit("tokenUpdated", { tokenOwner: null });
+			tokenOwner = null;
+			io.emit("tokenUpdated", { tokenOwner: null });
 		}
-	  });
-	
+	});
+
 	socket.on("sendProcessedVideo", ({ to, videoData, from }) => {
 		console.log("Video transfer isteği:");
 		console.log("Gönderen:", from);
 		console.log("Alıcı:", to);
-		
+
 		io.to(to).emit("receiveProcessedVideo", { videoData, from });
 	});
 });
 
-server.listen(5000, () => console.log("server is running on port 5000"))
+server.listen(5000, "192.168.1.107", () => {
+	console.log("HTTPS server is running on https://192.168.1.107:5000");
+});

@@ -14,14 +14,14 @@
 		"react": "^17.0.1",
 		"react-copy-to-clipboard": "^5.1.0",
 		"react-dom": "^17.0.1",
-		"react-scripts": "4.0.3",
+		"react-scripts": "^3.0.1",
 		"simple-peer": "^9.11.1",
 		"socket.io-client": "^4.8.1",
 		"web-vitals": "^1.0.1",
 		"yarn": "^1.22.22"
 	},
 	"scripts": {
-		"start": "react-scripts start",
+		"start": "set NODE_OPTIONS=--openssl-legacy-provider && react-scripts start",
 		"build": "react-scripts build",
 		"test": "react-scripts test",
 		"eject": "react-scripts eject"
