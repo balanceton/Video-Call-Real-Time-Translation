@@ -2,7 +2,9 @@ const fs = require("fs");
 const https = require("https");
 const express = require("express")
 const app = express()
-
+app.get('/', (req, res) => {
+	res.send('Server is running');
+});
 const privateKey = fs.readFileSync("server.key", "utf8");
 const certificate = fs.readFileSync("server.cert", "utf8");
 const credentials = { key: privateKey, cert: certificate };
@@ -10,7 +12,7 @@ const credentials = { key: privateKey, cert: certificate };
 const server = https.createServer(credentials, app);
 const io = require("socket.io")(server, {
 	cors: {
-		origin: "https://192.168.1.107:3000",
+		origin: ["https://192.168.1.107:3000"],
 		methods: ["GET", "POST"]
 	}
 });

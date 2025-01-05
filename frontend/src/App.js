@@ -21,7 +21,11 @@ const language_mapping = {
 };
 
 
-const socket = io.connect("http://192.168.1.107:5000");
+const socket = io.connect("https://192.168.1.107:5000", {
+  secure: true,
+  reconnection: true,
+  rejectUnauthorized: false
+});
 
 function App() {
   const [me, setMe] = useState("");
