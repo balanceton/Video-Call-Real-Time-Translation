@@ -86,18 +86,30 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://421b-35-234-14-117.ngrok-free.app/process_video/",
+                "https://9a2d-34-148-249-131.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
                   mode: "cors",
+                  credentials: "same-origin",
+                  headers: {
+                    "Accept": "application/json",
+                  },
                 }
               );
 
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+
               if (response.ok) {
+                const translatedText = response.headers.get("X-Translated-Text");
+                console.log("Received translated text:", translatedText);
+
                 const blob = await response.blob();
                 const videoURL = URL.createObjectURL(blob);
                 setProcessedVideoURL(videoURL);
+                console.log("Processed video URL:", videoURL);
 
                 const reader = new FileReader();
                 reader.onloadend = () => {
@@ -112,20 +124,14 @@ function App() {
                   console.log("IdToCall:", idToCall);
 
                   // Hedef ID'yi belirle
-                  let targetId;
-                  if (receivingCall) {
-                    // Eğer ben aranan tarafsam, arayana gönder
-                    targetId = caller;
-                    console.log("Aranan taraf olarak gönderiliyor. Hedef:", targetId);
-                  } else {
-                    // Eğer ben arayan tarafsam, aranana gönder
-                    targetId = idToCall;
-                    console.log("Arayan taraf olarak gönderiliyor. Hedef:", targetId);
-                  }
+                  let targetId = receivingCall ? caller : idToCall;
+
+                  console.log("Hedef ID:", targetId);
 
                   socket.emit("sendProcessedVideo", {
                     to: targetId,
                     videoData: base64data,
+                    translatedText: translatedText,
                     from: me
                   });
                 };
