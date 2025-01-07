@@ -52,6 +52,7 @@ function App() {
   const [remoteProcessedVideoURL, setRemoteProcessedVideoURL] = useState(null);
   const [callerName, setCallerName] = useState("");
   const [callFrom, setCallFrom] = useState("");
+  const [translatedText, setTranslatedText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
 
   const [transferProgress, setTransferProgress] = useState(0);
@@ -121,6 +122,7 @@ function App() {
               if (response.ok) {
                 const translatedText = response.headers.get("X-Translated-Text");
                 console.log("Received translated text:", translatedText);
+                setTranslatedText(translatedText);
 
                 const blob = await response.blob();
                 const videoURL = URL.createObjectURL(blob);
@@ -416,6 +418,7 @@ function App() {
               recordedBlob={recordedBlob}
               processedVideoURL={processedVideoURL}
               remoteProcessedVideoURL={remoteProcessedVideoURL}
+              translatedText={translatedText}
             />
           </div>
           <div style={{ marginLeft: "100px", width: "400px" }}>
