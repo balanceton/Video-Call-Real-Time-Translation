@@ -46,6 +46,7 @@ function App() {
   const [remoteProcessedVideoURL, setRemoteProcessedVideoURL] = useState(null);
   const [callerName, setCallerName] = useState("");
   const [callFrom, setCallFrom] = useState("");
+  const [translatedText, setTranslatedText] = useState("");
 
 
   const myVideo = useRef();
@@ -86,7 +87,7 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://9a2d-34-148-249-131.ngrok-free.app/process_video/",
+                "https://6392-34-13-145-187.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
@@ -105,6 +106,7 @@ function App() {
               if (response.ok) {
                 const translatedText = response.headers.get("X-Translated-Text");
                 console.log("Received translated text:", translatedText);
+                setTranslatedText(translatedText);
 
                 const blob = await response.blob();
                 const videoURL = URL.createObjectURL(blob);
@@ -319,6 +321,7 @@ function App() {
               recordedBlob={recordedBlob}
               processedVideoURL={processedVideoURL}
               remoteProcessedVideoURL={remoteProcessedVideoURL}
+              translatedText={translatedText}
             />
           </div>
           <div style={{ marginLeft: "100px", width: "400px" }}>

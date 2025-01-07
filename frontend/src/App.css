@@ -5,7 +5,7 @@
 
 .myId {
   margin-right: 5rem;
-  margin-top : 5rem;
+  margin-top: 5rem;
   border-radius: 5px;
   background: #1c69d4;
   background: -webkit-linear-gradient(to right, #1d1d9b, #c9d6ff);
@@ -44,4 +44,13 @@ body {
   background: #a58617;
   background: -webkit-linear-gradient(to right, #e1d09b, #cfe187);
   background: linear-gradient(to right, #e9e7eb, #d3dda1);
+}
+
+.video-container p {
+  font-size: 14px;
+  color: #fff;
+  text-align: left;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 5px 10px;
+  border-radius: 5px;
 }
