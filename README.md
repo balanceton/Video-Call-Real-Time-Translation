@@ -7,7 +7,7 @@ This application is a cross-language audio-video conferencing application that a
 ## How to Run the Application
 
 ### Step 1: Run the Google Colab Pipeline
-1. Open the Colab pipeline from the following link: [Colab Link](https://colab.research.google.com/drive/16WrkMYUxMzhsB_Ly8NJy1_042a4A2rz1?usp=sharing)
+1. Open the Colab pipeline from the following link: [Colab Link](https://colab.research.google.com/drive/1n1uKyBvvsQwQboAhg9PAkE3hMKPsJexi?usp=sharing)
 
 2. Run the pipeline in Colab.
 3. Once the pipeline finishes running, store the URL provided by ngrok in the output of the last code block.
