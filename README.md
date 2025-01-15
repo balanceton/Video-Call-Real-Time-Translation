@@ -78,7 +78,7 @@ This application is a cross-language audio-video conferencing application that a
 
 ### Step 8: Start demo
 1. Demo is ready now. Open the "localhost:3000" in two different tabs now.
-2. Enter names for both tabs. Select target languaeg. Then copy the id for one them and call them from other one.
+2. Enter names for both tabs. Select target language. Then copy the id for one them and call them from other one.
 
 
 
