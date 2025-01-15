@@ -42,21 +42,28 @@ function App() {
   const [remoteProcessedVideoURL, setRemoteProcessedVideoURL] = useState(null);
   const [callerName, setCallerName] = useState("");
   const [callFrom, setCallFrom] = useState("");
-
+  const [isRecording, setIsRecording] = useState(false);
 
   const myVideo = useRef();
   const userVideo = useRef();
   const connectionRef = useRef();
+  const recordedChunksRef = useRef([]);
+  const mediaRecorderRef = useRef(null);
+
+
 
   // ** Start Recording Logic **
   const startRecording = useCallback(() => {
     if (stream) {
+      recordedChunksRef.current = []; // Her kayıt başlangıcında temizle
       const recorder = new MediaRecorder(stream);
-      setMediaRecorder(recorder);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          setRecordedChunks((prev) => [...prev, event.data]);
+          recordedChunksRef.current.push(event.data);
         }
       };
 
@@ -67,11 +74,15 @@ function App() {
     }
   }, [stream]);
 
-  const stopRecording = () => {
-    if (mediaRecorder) {
-      mediaRecorder.onstop = () => {
-        if (recordedChunks.length > 0) {
-          const blob = new Blob(recordedChunks, { type: "video/webm" });
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+
+      // onstop handler'ı burada tanımlayalım
+      mediaRecorderRef.current.onstop = () => {
+        if (recordedChunksRef.current.length > 0) {
+          const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
           setRecordedBlob(blob);
 
           const sendVideoToPipeline = async (videoBlob) => {
@@ -82,7 +93,7 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://421b-35-234-14-117.ngrok-free.app/process_video/",
+                "https://755b-35-197-155-12.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
@@ -99,30 +110,12 @@ function App() {
                 reader.onloadend = () => {
                   const base64data = reader.result;
                   
-                  // Debug için detaylı loglar
-                  console.log("Video göndermeye hazırlanıyor...");
-                  console.log("Benim ID'm:", me);
-                  console.log("Arayan mıyım?", !receivingCall);
-                  console.log("Caller ID:", caller);
-                  console.log("CallFrom:", callFrom);
-                  console.log("IdToCall:", idToCall);
-
-                  // Hedef ID'yi belirle
-                  let targetId;
-                  if (receivingCall) {
-                    // Eğer ben aranan tarafsam, arayana gönder
-                    targetId = caller;
-                    console.log("Aranan taraf olarak gönderiliyor. Hedef:", targetId);
-                  } else {
-                    // Eğer ben arayan tarafsam, aranana gönder
-                    targetId = idToCall;
-                    console.log("Arayan taraf olarak gönderiliyor. Hedef:", targetId);
-                  }
-
+                  let targetId = receivingCall ? caller : idToCall;
+                  
                   socket.emit("sendProcessedVideo", {
                     to: targetId,
                     videoData: base64data,
-                    from: me
+                    from: me,
                   });
                 };
                 reader.readAsDataURL(blob);
@@ -133,20 +126,30 @@ function App() {
           };
 
           sendVideoToPipeline(blob);
-          setRecordedChunks([]);
+          recordedChunksRef.current = []; // Chunks'ları temizle
         }
       };
-      mediaRecorder.stop();
     }
-  };
-  
+  }, [receivingCall, caller, idToCall, me, selectedLanguage]);
 
   // ** UseEffect to start recording when tokenOwner matches me **
   useEffect(() => {
-    if (tokenOwner === me) {
+    if (tokenOwner === me && !isRecording) {
       startRecording();
+    } else if (tokenOwner !== me && isRecording) {
+      stopRecording();
     }
-  }, [tokenOwner, me, startRecording]);
+  }, [tokenOwner, me, isRecording, startRecording, stopRecording]);
+
+  const tokenActionsProps = {
+    tokenOwner,
+    me,
+    socket,
+    onReleaseToken: () => {
+      stopRecording();
+      socket.emit("releaseToken", { ownerId: me });
+    }
+  };
 
   // ** Handle incoming stream mute toggle **
   useEffect(() => {
@@ -185,11 +188,11 @@ function App() {
       console.log("Benim ID'm:", me);
       console.log("Arayan mıyım?", !receivingCall);
       console.log("Video data uzunluğu:", videoData?.length);
-      
+
       if (remoteProcessedVideoURL) {
         URL.revokeObjectURL(remoteProcessedVideoURL);
       }
-      
+
       try {
         const byteString = atob(videoData.split(',')[1]);
         const ab = new ArrayBuffer(byteString.length);
@@ -297,10 +300,10 @@ function App() {
               callAccepted={callAccepted}
               callEnded={callEnded}
             />
-            <RecordedVideos 
-              recordedBlob={recordedBlob} 
+            <RecordedVideos
+              recordedBlob={recordedBlob}
               processedVideoURL={processedVideoURL}
-              remoteProcessedVideoURL={remoteProcessedVideoURL} 
+              remoteProcessedVideoURL={remoteProcessedVideoURL}
             />
           </div>
           <div style={{ marginLeft: "100px", width: "400px" }}>
@@ -315,19 +318,14 @@ function App() {
               callEnded={callEnded}
               leaveCall={leaveCall}
             />
-            <TokenActions 
-              tokenOwner={tokenOwner} 
-              me={me} 
-              socket={socket} 
-              stopRecording={stopRecording} 
-            />
+            <TokenActions {...tokenActionsProps} />
           </div>
         </div>
         {!callAccepted && (
-          <CallNotifications 
-            receivingCall={receivingCall} 
-            name={callerName} 
-            answerCall={answerCall} 
+          <CallNotifications
+            receivingCall={receivingCall}
+            name={callerName}
+            answerCall={answerCall}
           />
         )}
       </div>
