@@ -88,6 +88,12 @@ io.on("connection", (socket) => {
 		}
 	});
 
+	socket.on("sendTranslatedText", ({ to, text, from }) => {
+		console.log(`Text transfer başladı: ${from} -> ${to}`);
+		io.to(to).emit("receiveTranslatedText", { text, from });
+		console.log("Text transfer tamamlandı");
+	});
+
 	socket.on("sendVideoChunk", ({ to, chunk, chunkIndex, totalChunks, from }) => {
 		const key = `${from}_${to}`;
 

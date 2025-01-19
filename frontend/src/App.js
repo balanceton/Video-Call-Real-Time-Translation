@@ -30,7 +30,7 @@ const socket = io.connect("https://192.168.1.107:5000", {
   timeout: 60000,
   pingTimeout: 30000,
   pingInterval: 5000,
-  rejectUnauthorized: false
+  rejectUnauthorized: false // for testing
 });
 
 function App() {
@@ -54,6 +54,7 @@ function App() {
   const [callFrom, setCallFrom] = useState("");
   const [translatedText, setTranslatedText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [remoteTranslatedText, setRemoteTranslatedText] = useState("");
 
   const [transferProgress, setTransferProgress] = useState(0);
   const [transferError, setTransferError] = useState(null);
@@ -103,7 +104,7 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://fd57-35-186-144-52.ngrok-free.app/process_video/",
+                "https://c895-34-13-155-106.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
@@ -155,6 +156,12 @@ function App() {
                   socket.emit("startVideoTransfer", {
                     to: targetId,
                     totalChunks: chunks,
+                    from: me
+                  });
+
+                  socket.emit("sendTranslatedText", {
+                    to: targetId,
+                    text: translatedText,
                     from: me
                   });
 
@@ -212,14 +219,20 @@ function App() {
       setTransferError(error);
     });
 
+    socket.on("receiveTranslatedText", ({ text, from }) => {
+      console.log(`Text alındı - Gönderen: ${from}, Text: ${text}`);
+      setRemoteTranslatedText(text);
+    });
+
     return () => {
       clearTimeout(reconnectTimeout);
       socket.off("connect");
       socket.off("disconnect");
       socket.off("connect_error");
       socket.off("videoTransferError");
+      socket.off("receiveTranslatedText");
     }
-  }, []);
+  }, [me, receivingCall]);
   // ** UseEffect to start recording when tokenOwner matches me **
   useEffect(() => {
     if (tokenOwner === me && !isRecording) {
@@ -419,6 +432,7 @@ function App() {
               processedVideoURL={processedVideoURL}
               remoteProcessedVideoURL={remoteProcessedVideoURL}
               translatedText={translatedText}
+              remoteTranslatedText={remoteTranslatedText}
             />
           </div>
           <div style={{ marginLeft: "100px", width: "400px" }}>
