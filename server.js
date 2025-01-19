@@ -1,6 +1,7 @@
 const fs = require("fs");
 const https = require("https");
 const express = require("express")
+const { IP_ADDRESS, PORT_3000, PORT_5000 } = require("./constants");
 const app = express()
 app.get('/', (req, res) => {
 	res.send('Server is running');
@@ -12,7 +13,7 @@ const credentials = { key: privateKey, cert: certificate };
 const server = https.createServer(credentials, app);
 const io = require("socket.io")(server, {
 	cors: {
-		origin: ["https://192.168.1.107:3000"],
+		origin: [`https://${IP_ADDRESS}:${PORT_3000}`],
 		methods: ["GET", "POST"]
 	}
 });
@@ -64,6 +65,6 @@ io.on("connection", (socket) => {
 	});
 });
 
-server.listen(5000, "192.168.1.107", () => {
-	console.log("HTTPS server is running on https://192.168.1.107:5000");
+server.listen(PORT_5000, IP_ADDRESS, () => {
+	console.log(`HTTPS server is running on https://${IP_ADDRESS}:${PORT_5000}`);
 });

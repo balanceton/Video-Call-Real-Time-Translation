@@ -8,6 +8,7 @@ import TokenActions from "./components/TokenActions";
 import RecordedVideos from "./components/RecordedVideos";
 import "./App.css";
 import LanguageSelector from "./components/LanguageSelector";
+import { IP_ADDRESS, PORT_5000 } from './constants';
 
 
 const language_mapping = {
@@ -21,7 +22,7 @@ const language_mapping = {
 };
 
 
-const socket = io.connect("https://192.168.1.107:5000", {
+const socket = io.connect(`https://${IP_ADDRESS}:${PORT_5000}`, {
   secure: true,
   reconnection: true,
   rejectUnauthorized: false
@@ -87,7 +88,7 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://6392-34-13-145-187.ngrok-free.app/process_video/",
+                "https://836e-34-73-121-179.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
