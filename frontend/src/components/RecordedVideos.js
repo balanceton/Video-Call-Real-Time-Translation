@@ -1,6 +1,11 @@
 import React, { useEffect } from "react";
 
-const RecordedVideos = ({ processedVideoURL, remoteProcessedVideoURL, translatedText }) => {
+const RecordedVideos = ({
+  processedVideoURL,
+  remoteProcessedVideoURL,
+  translatedText,
+  remoteTranslatedText
+}) => {
   return (
     <div className="video-container" style={{
       display: "flex",
@@ -37,8 +42,8 @@ const RecordedVideos = ({ processedVideoURL, remoteProcessedVideoURL, translated
             <source src={remoteProcessedVideoURL} type="video/webm" />
             Tarayıcınız video etiketini desteklemiyor.
           </video>
-          {translatedText && (
-            <p className="translated-text text-white mt-2">{translatedText}</p>
+          {remoteTranslatedText && (
+            <p className="translated-text text-white mt-2">{remoteTranslatedText}</p>
           )}
         </div>
       )}

@@ -13,8 +13,15 @@ const credentials = { key: privateKey, cert: certificate };
 const server = https.createServer(credentials, app);
 const io = require("socket.io")(server, {
 	cors: {
-		origin: [`https://${IP_ADDRESS}:${PORT_3000}`],
-		methods: ["GET", "POST"]
+		origin: [
+			`https://${IP_ADDRESS}:${PORT_3000}`,
+			`https://${IP_ADDRESS}:${PORT_5000}`,
+			"http://localhost:3000",
+			"http://localhost:5000",
+			"http://127.0.0.1:3000",
+			"http://127.0.0.1:5000"
+		], methods: ["GET", "POST"],
+		credentials: true
 	}
 });
 
@@ -56,12 +63,16 @@ io.on("connection", (socket) => {
 		}
 	});
 
-	socket.on("sendProcessedVideo", ({ to, videoData, from }) => {
+	socket.on("sendProcessedVideo", ({ to, videoData, translatedText, from }) => {
 		console.log("Video transfer isteği:");
 		console.log("Gönderen:", from);
 		console.log("Alıcı:", to);
+		if (!to || !videoData) {
+			console.error("Eksik parametre");
+			return;
+		}
 
-		io.to(to).emit("receiveProcessedVideo", { videoData, from });
+		io.to(to).emit("receiveProcessedVideo", { videoData, translatedText, from });
 	});
 });
 

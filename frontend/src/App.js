@@ -48,7 +48,7 @@ function App() {
   const [callerName, setCallerName] = useState("");
   const [callFrom, setCallFrom] = useState("");
   const [translatedText, setTranslatedText] = useState("");
-
+  const [remoteTranslatedText, setRemoteTranslatedText] = useState("");
 
   const myVideo = useRef();
   const userVideo = useRef();
@@ -88,7 +88,7 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://836e-34-73-121-179.ngrok-free.app/process_video/",
+                "https://116b-34-141-178-22.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
@@ -200,8 +200,8 @@ function App() {
       setTokenOwner(data.tokenOwner);
     });
 
-    socket.on("receiveProcessedVideo", ({ videoData, from }) => {
-      console.log("Video alındı!");
+    socket.on("receiveProcessedVideo", ({ videoData, translatedText, from }) => {
+      console.log("Video ve altyazı alındı!");
       console.log("Gönderen ID:", from);
       console.log("Benim ID'm:", me);
       console.log("Arayan mıyım?", !receivingCall);
@@ -220,8 +220,9 @@ function App() {
         }
         const blob = new Blob([ab], { type: 'video/webm' });
         const newVideoURL = URL.createObjectURL(blob);
-        console.log("Yeni video URL oluşturuldu:", newVideoURL);
         setRemoteProcessedVideoURL(newVideoURL);
+        setRemoteTranslatedText(translatedText);
+        console.log("Yeni video URL oluşturuldu:", newVideoURL);
       } catch (error) {
         console.error("Video dönüştürme hatası:", error);
       }
@@ -323,6 +324,7 @@ function App() {
               processedVideoURL={processedVideoURL}
               remoteProcessedVideoURL={remoteProcessedVideoURL}
               translatedText={translatedText}
+              remoteTranslatedText={remoteTranslatedText}
             />
           </div>
           <div style={{ marginLeft: "100px", width: "400px" }}>
