@@ -52,22 +52,28 @@ function App() {
   const [remoteProcessedVideoURL, setRemoteProcessedVideoURL] = useState(null);
   const [callerName, setCallerName] = useState("");
   const [callFrom, setCallFrom] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+
   const [transferProgress, setTransferProgress] = useState(0);
   const [transferError, setTransferError] = useState(null);
 
   const myVideo = useRef();
   const userVideo = useRef();
   const connectionRef = useRef();
+  const recordedChunksRef = useRef([]);
+  const mediaRecorderRef = useRef(null);
 
   // ** Start Recording Logic **
   const startRecording = useCallback(() => {
     if (stream) {
+      recordedChunksRef.current = []; // Her kayıt başlangıcında temizle
       const recorder = new MediaRecorder(stream);
-      setMediaRecorder(recorder);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          setRecordedChunks((prev) => [...prev, event.data]);
+          recordedChunksRef.current.push(event.data);
         }
       };
 
@@ -78,11 +84,14 @@ function App() {
     }
   }, [stream]);
 
-  const stopRecording = () => {
-    if (mediaRecorder) {
-      mediaRecorder.onstop = () => {
-        if (recordedChunks.length > 0) {
-          const blob = new Blob(recordedChunks, { type: "video/webm" });
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      // onstop handler'ı burada tanımlayalım
+      mediaRecorderRef.current.onstop = () => {
+        if (recordedChunksRef.current.length > 0) {
+          const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
           setRecordedBlob(blob);
 
           const sendVideoToPipeline = async (videoBlob) => {
@@ -93,7 +102,7 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://a29c-34-80-202-58.ngrok-free.app/process_video/",
+                "https://fd57-35-186-144-52.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
@@ -170,12 +179,11 @@ function App() {
           };
 
           sendVideoToPipeline(blob);
-          setRecordedChunks([]);
+          recordedChunksRef.current = []; // Chunks'ları temizle
         }
       };
-      mediaRecorder.stop();
     }
-  };
+  }, [receivingCall, caller, idToCall, me, selectedLanguage]);
 
   useEffect(() => {
     let reconnectTimeout;
@@ -212,10 +220,22 @@ function App() {
   }, []);
   // ** UseEffect to start recording when tokenOwner matches me **
   useEffect(() => {
-    if (tokenOwner === me) {
+    if (tokenOwner === me && !isRecording) {
       startRecording();
+    } else if (tokenOwner !== me && isRecording) {
+      stopRecording();
     }
-  }, [tokenOwner, me, startRecording]);
+  }, [tokenOwner, me, isRecording, startRecording, stopRecording]);
+
+  const tokenActionsProps = {
+    tokenOwner,
+    me,
+    socket,
+    onReleaseToken: () => {
+      stopRecording();
+      socket.emit("releaseToken", { ownerId: me });
+    }
+  };
 
   // ** Handle incoming stream mute toggle **
   useEffect(() => {
@@ -410,12 +430,7 @@ function App() {
               callEnded={callEnded}
               leaveCall={leaveCall}
             />
-            <TokenActions
-              tokenOwner={tokenOwner}
-              me={me}
-              socket={socket}
-              stopRecording={stopRecording}
-            />
+            <TokenActions {...tokenActionsProps} />
           </div>
         </div>
         {!callAccepted && (
