@@ -24,6 +24,12 @@ const language_mapping = {
 const socket = io.connect("https://192.168.1.107:5000", {
   secure: true,
   reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 60000,
+  pingTimeout: 30000,
+  pingInterval: 5000,
   rejectUnauthorized: false
 });
 
@@ -46,7 +52,8 @@ function App() {
   const [remoteProcessedVideoURL, setRemoteProcessedVideoURL] = useState(null);
   const [callerName, setCallerName] = useState("");
   const [callFrom, setCallFrom] = useState("");
-
+  const [transferProgress, setTransferProgress] = useState(0);
+  const [transferError, setTransferError] = useState(null);
 
   const myVideo = useRef();
   const userVideo = useRef();
@@ -86,7 +93,7 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://9a2d-34-148-249-131.ngrok-free.app/process_video/",
+                "https://a29c-34-80-202-58.ngrok-free.app/process_video/",
                 {
                   method: "POST",
                   body: formData,
@@ -122,18 +129,38 @@ function App() {
                   console.log("Caller ID:", caller);
                   console.log("CallFrom:", callFrom);
                   console.log("IdToCall:", idToCall);
+                  let targetId;
+                  if (receivingCall) {
+                    targetId = callFrom;
+                  } else {
+                    targetId = idToCall;
+                  }
+                  console.log("Video gönderiliyor - Hedef:", targetId, "Gönderen:", me);
+                  const chunkSize = 256 * 1024;
+                  const chunks = Math.ceil(base64data.length / chunkSize);
 
-                  // Hedef ID'yi belirle
-                  let targetId = receivingCall ? caller : idToCall;
+                  console.log(`Video ${chunks} parçada gönderilecek. Toplam boyut: ${base64data.length} bytes`);
 
-                  console.log("Hedef ID:", targetId);
-
-                  socket.emit("sendProcessedVideo", {
+                  socket.emit("startVideoTransfer", {
                     to: targetId,
-                    videoData: base64data,
-                    translatedText: translatedText,
+                    totalChunks: chunks,
                     from: me
                   });
+
+                  for (let i = 0; i < chunks; i++) {
+                    const chunk = base64data.slice(i * chunkSize, (i + 1) * chunkSize);
+
+                    socket.emit("sendVideoChunk", {
+                      to: targetId,
+                      chunk: chunk,
+                      chunkIndex: i,
+                      totalChunks: chunks,
+                      from: me
+                    });
+
+                    console.log(`Chunk ${i + 1}/${chunks} gönderildi`);
+
+                  }
                 };
                 reader.readAsDataURL(blob);
               }
@@ -150,7 +177,39 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    let reconnectTimeout;
 
+    socket.on("connect", () => {
+      console.log("Socket.io bağlantısı kuruldu");
+      clearTimeout(reconnectTimeout);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Socket.io bağlantısı koptu");
+      reconnectTimeout = setTimeout(() => {
+        console.log("Yeniden bağlanmaya çalışılıyor...");
+        socket.connect();
+      }, 1000);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("Bağlantı hatası:", error);
+    });
+
+    socket.on("videoTransferError", ({ error }) => {
+      console.error("Video transfer hatası:", error);
+      setTransferError(error);
+    });
+
+    return () => {
+      clearTimeout(reconnectTimeout);
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("connect_error");
+      socket.off("videoTransferError");
+    }
+  }, []);
   // ** UseEffect to start recording when tokenOwner matches me **
   useEffect(() => {
     if (tokenOwner === me) {
@@ -198,17 +257,27 @@ function App() {
     });
 
     socket.on("receiveProcessedVideo", ({ videoData, from }) => {
-      console.log("Video alındı!");
-      console.log("Gönderen ID:", from);
+      console.log(`Video alındı - Gönderen: ${from}`);
+      if (!videoData) {
+        console.error("Video data boş!");
+        return;
+      }
       console.log("Benim ID'm:", me);
       console.log("Arayan mıyım?", !receivingCall);
       console.log("Video data uzunluğu:", videoData?.length);
 
-      if (remoteProcessedVideoURL) {
-        URL.revokeObjectURL(remoteProcessedVideoURL);
-      }
-
       try {
+        // Buffer boyutu kontrolü
+        const maxBufferSize = 50 * 1024 * 1024; // 50MB
+        if (videoData.length > maxBufferSize) {
+          console.error("Video boyutu çok büyük!");
+          return;
+        }
+
+        // Base64 formatı kontrolü
+        if (!videoData.startsWith('data:')) {
+          videoData = 'data:video/webm;base64,' + videoData;
+        }
         const byteString = atob(videoData.split(',')[1]);
         const ab = new ArrayBuffer(byteString.length);
         const ia = new Uint8Array(ab);
@@ -216,7 +285,15 @@ function App() {
           ia[i] = byteString.charCodeAt(i);
         }
         const blob = new Blob([ab], { type: 'video/webm' });
+        if (blob.size === 0) {
+          console.error("Oluşturulan blob boş!");
+          return;
+        }
         const newVideoURL = URL.createObjectURL(blob);
+
+        if (remoteProcessedVideoURL) {
+          URL.revokeObjectURL(remoteProcessedVideoURL);
+        }
         console.log("Yeni video URL oluşturuldu:", newVideoURL);
         setRemoteProcessedVideoURL(newVideoURL);
       } catch (error) {
@@ -230,7 +307,7 @@ function App() {
       socket.off("receiveProcessedVideo");
       socket.off("tokenUpdated");
     };
-  }, [me, receivingCall]); // receivingCall'ı dependency olarak ekledik
+  }, [me, receivingCall, remoteProcessedVideoURL]);
 
   // ** Call a User **
   const callUser = (id) => {
