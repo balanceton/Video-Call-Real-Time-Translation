@@ -1,32 +1,92 @@
 const fs = require("fs");
 const https = require("https");
 const express = require("express")
+const socketIo = require('socket.io');
+
+const { createProxyMiddleware } = require('http-proxy-middleware');
+const cors = require('cors');
 const app = express()
+
+const corsOptions = {
+	origin: [
+		'https://localhost:3000',
+		'https://192.168.1.107:3000'
+	],
+	methods: ['GET', 'POST', 'OPTIONS'],
+	credentials: true,
+	allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
+const backendProxy = createProxyMiddleware({
+	target: 'https://192.168.1.107:5000',
+	changeOrigin: true,
+	secure: false,
+	onProxyRes: (proxyRes, req, res) => {
+		proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+	}
+});
+
+const ngrokProxy = createProxyMiddleware({
+	target: 'https://5b7e-34-90-106-91.ngrok-free.app',
+	changeOrigin: true,
+	secure: false,
+	pathRewrite: {
+		'^/process_video': '/process_video'
+	},
+	headers: {
+		'Access-Control-Allow-Credentials': 'true'
+	},
+	onProxyRes: (proxyRes, req, res) => {
+		proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+		proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
+	},
+	onError: (err, req, res) => {
+		console.error('Proxy Error:', err);
+		res.writeHead(500, {
+			'Content-Type': 'text/plain',
+			'Access-Control-Allow-Origin': '*',
+			'Access-Control-Allow-Credentials': 'true'
+		});
+		res.end(`Proxy Error: ${err.message}`);
+	}
+});
+
+app.use('/socket.io', backendProxy);
+app.use('/api', backendProxy);
+app.post('/process_video', ngrokProxy);
+
+
+const privateKey = fs.readFileSync('server.key', 'utf8');
+const certificate = fs.readFileSync('server.cert', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
+
+
 app.get('/', (req, res) => {
 	res.send('Server is running');
 });
-const privateKey = fs.readFileSync("server.key", "utf8");
-const certificate = fs.readFileSync("server.cert", "utf8");
-const credentials = { key: privateKey, cert: certificate };
 
-const server = https.createServer(credentials, app);
-const io = require("socket.io")(server, {
-	cors: {
-		origin: [
-			"https://192.168.1.107:3000",
-			"https://192.168.1.107:5000",
-			"http://localhost:3000",
-			"http://localhost:5000",
-			"http://127.0.0.1:3000",
-			"http://127.0.0.1:5000"
-		], methods: ["GET", "POST"],
-		credentials: true
-	}
-});
+const httpsServer = https.createServer(credentials, app);
 
 let tokenOwner = null;
 const videoChunks = new Map(); // Her bağlantı için chunk'ları saklar
 const transferTimeouts = new Map();
+
+const io = socketIo(httpsServer, {
+	cors: {
+		origin: [
+			'http://localhost:3000',
+			'https://localhost:3000',
+			'http://192.168.1.107:3000',
+			'https://192.168.1.107:3000'
+		],
+		methods: ['GET', 'POST'],
+		credentials: true
+	}
+});
+
+
 
 io.on("connection", (socket) => {
 	console.log("Yeni bağlantı:", socket.id);
@@ -136,6 +196,7 @@ io.on("connection", (socket) => {
 	});
 });
 
-server.listen(5000, "192.168.1.107", () => {
-	console.log("HTTPS server is running on https://192.168.1.107:5000");
+const PORT = 8080;
+httpsServer.listen(PORT, '0.0.0.0', () => {
+	console.log(`Proxy server running on https://0.0.0.0:${PORT}`);
 });

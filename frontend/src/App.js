@@ -21,7 +21,7 @@ const language_mapping = {
 };
 
 
-const socket = io.connect("https://192.168.1.107:5000", {
+const socket = io.connect("https://192.168.1.107:8080", {
   secure: true,
   reconnection: true,
   reconnectionAttempts: Infinity,
@@ -30,7 +30,7 @@ const socket = io.connect("https://192.168.1.107:5000", {
   timeout: 60000,
   pingTimeout: 30000,
   pingInterval: 5000,
-  rejectUnauthorized: false // for testing
+  rejectUnauthorized: false
 });
 
 function App() {
@@ -104,12 +104,12 @@ function App() {
               formData.append("language", apiLanguage);
 
               const response = await fetch(
-                "https://c895-34-13-155-106.ngrok-free.app/process_video/",
+                "https://192.168.1.107:8080/process_video/",
                 {
                   method: "POST",
                   body: formData,
                   mode: "cors",
-                  credentials: "same-origin",
+                  credentials: "include",
                   headers: {
                     "Accept": "application/json",
                   },
